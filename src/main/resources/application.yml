@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: RFID
+    port: 5000
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test
+    username: myuser
+    password: user
+  jpa:
+    hibernate:
+      ddl_auto: update
+    open-in-view: false
+
