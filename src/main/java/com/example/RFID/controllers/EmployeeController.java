@@ -22,7 +22,7 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
     @GetMapping("/{rfid}")
-    public ResponseEntity<EmployeeDto> getEmployeeByRFID(@RequestParam String rfid) {
+    public ResponseEntity<EmployeeDto> getEmployeeByRFID(@PathVariable String rfid) {
         EmployeeDto response= employeeService.findOne(rfid);
         if(response==null){
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -31,7 +31,7 @@ public class EmployeeController {
     }
     @PostMapping
     public ResponseEntity<EmployeeDto> createEmployee(@RequestBody EmployeeDto employeeDto) {
-        System.out.println(employeeDto);
+
         EmployeeDto response=employeeService.createOne(employeeDto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
