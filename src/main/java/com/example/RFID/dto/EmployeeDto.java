@@ -21,4 +21,5 @@ public class EmployeeDto  implements Serializable {
     private String department;
     private Role role;
     private Gender gender;
+    private String image;
 }
