@@ -28,14 +28,18 @@ def download_image_from_url(image_url):
         # Convert to PIL Image
         image = Image.open(io.BytesIO(response.content))
 
+        # Ensure image is in RGB mode
+        if image.mode != 'RGB':
+            print(f"🔄 Converting image from {image.mode} to RGB")
+            image = image.convert('RGB')
+
         # Convert PIL Image to numpy array (RGB format)
-        image_array = np.array(image)
+        image_array = np.array(image, dtype=np.uint8)
 
-        # If image is RGBA, convert to RGB
-        if image_array.shape[2] == 4:
-            image_array = image_array[:, :, :3]
+        # Ensure the array is contiguous in memory
+        image_array = np.ascontiguousarray(image_array)
 
-        print(f"✅ Successfully downloaded image ({image_array.shape})")
+        print(f"✅ Successfully downloaded image ({image_array.shape}, dtype: {image_array.dtype})")
         return image_array
 
     except requests.exceptions.RequestException as e:
@@ -57,19 +61,38 @@ def load_employee_face_from_url(image_url, rfid):
         return None, None
 
     try:
-        # Get face encodings from the downloaded image
-        encodings = face_recognition.face_encodings(image_array)
+        print(f"🔍 Looking for faces in image...")
+
+        # First, try to find face locations
+        face_locations = face_recognition.face_locations(image_array)
+
+        if not face_locations:
+            print(f"❌ No faces detected in the image for RFID: {rfid}")
+            # Try with different detection model
+            print(f"🔄 Trying with CNN model...")
+            face_locations = face_recognition.face_locations(image_array, model="cnn")
+
+        if not face_locations:
+            print(f"❌ Still no faces found in the downloaded image for RFID: {rfid}")
+            return None, None
+
+        print(f"✅ Found {len(face_locations)} face(s) in the image")
+
+        # Get face encodings from the detected faces
+        encodings = face_recognition.face_encodings(image_array, face_locations)
 
         if encodings:
-            target_encoding = encodings[0]
-            print(f"✅ Successfully loaded face encoding for RFID: {rfid}")
+            target_encoding = encodings[0]  # Use the first face found
+            print(f"✅ Successfully created face encoding for RFID: {rfid}")
             return target_encoding, rfid
         else:
-            print(f"❌ No face found in the downloaded image for RFID: {rfid}")
+            print(f"❌ Could not create face encoding for RFID: {rfid}")
             return None, None
 
     except Exception as e:
         print(f"❌ Error processing face encoding for RFID {rfid}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None, None
 
 def verify_face_with_camera(target_encoding, rfid, timeout_seconds=10):
