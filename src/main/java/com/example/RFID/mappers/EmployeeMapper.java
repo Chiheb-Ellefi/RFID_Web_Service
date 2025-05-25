@@ -14,7 +14,7 @@ public class EmployeeMapper {
                 .phoneNumber(employee.getPhoneNumber())
                 .role(employee.getRole())
                 .username(employee.getUsername())
-                .image(employee.getImage())
+                .imageUrl(employee.getImageUrl())
                 .build();
 
     }
@@ -28,7 +28,7 @@ public class EmployeeMapper {
                 .phoneNumber(employee.getPhoneNumber())
                 .role(employee.getRole())
                 .username(employee.getUsername())
-                .image(employee.getImage())
+                .imageUrl(employee.getImageUrl())
                 .build();
     }
 }

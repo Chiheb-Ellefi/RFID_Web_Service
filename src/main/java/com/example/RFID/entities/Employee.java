@@ -27,6 +27,6 @@
         @Column(nullable = false)
         @Enumerated(EnumType.STRING)
         private Gender gender;
-        private String image;
+        private String imageUrl;
 
     }
