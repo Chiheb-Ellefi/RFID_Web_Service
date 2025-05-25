@@ -64,7 +64,7 @@ public class ClientHandler implements Runnable {
             // Employee found in database, now verify with face recognition
             System.out.println("Employee found in database, starting face recognition...");
 
-            boolean faceVerified = performFaceRecognition(rfid);
+            boolean faceVerified = performFaceRecognition(rfid,employee.getImageUrl());
 
             if (faceVerified) {
                 // Face recognition successful, send employee data
@@ -83,21 +83,18 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private boolean performFaceRecognition(String rfid) {
+    private boolean performFaceRecognition(String rfid,String imageUrl) {
         try {
             System.out.println("Starting face recognition process for RFID: " + rfid);
 
-            // Get the absolute path to the known_faces directory
-            String knownFacesPath = new File("src/main/resources/known_faces").getAbsolutePath();
 
             ProcessBuilder processBuilder = new ProcessBuilder(
                     "python3",
                     "src/main/java/com/example/RFID/utils/face_recognition_server.py",
                     rfid,
-                    knownFacesPath
+                    imageUrl
             );
 
-            // Set working directory if needed (adjust path as necessary)
             processBuilder.directory(new File("."));
 
             // Redirect error stream to output stream for debugging

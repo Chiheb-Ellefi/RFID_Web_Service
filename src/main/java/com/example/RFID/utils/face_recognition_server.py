@@ -2,7 +2,7 @@
 """
 Face Recognition Server Script
 Called by Java server to verify employee faces
-Usage: python3 face_recognition_server.py <rfid>
+Usage: python3 face_recognition_server.py <rfid> <image_url>
 Exit codes: 0 = verified, 1 = not verified, 2 = error
 """
 
@@ -12,54 +12,64 @@ import os
 import sys
 import numpy as np
 import time
+import requests
+from PIL import Image
+import io
 
-def load_employee_face(known_faces_dir="known_faces", rfid=None):
-    """Load and encode employee face from the known faces directory"""
-    if not os.path.exists(known_faces_dir):
-        print(f"❌ Directory '{known_faces_dir}' not found!")
-        return None, None
+def download_image_from_url(image_url):
+    """Download image from Firebase Cloud Storage URL"""
+    try:
+        print(f"📥 Downloading image from URL: {image_url}")
 
-    # Look for the employee's image file using RFID
-    target_encoding = None
-    target_file = None
+        # Download the image
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
 
-    # Check different possible file extensions
-    possible_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+        # Convert to PIL Image
+        image = Image.open(io.BytesIO(response.content))
 
-    for ext in possible_extensions:
-        potential_file = f"{rfid}{ext}"
-        file_path = os.path.join(known_faces_dir, potential_file)
+        # Convert PIL Image to numpy array (RGB format)
+        image_array = np.array(image)
 
-        if os.path.exists(file_path):
-            target_file = potential_file
-            break
+        # If image is RGBA, convert to RGB
+        if image_array.shape[2] == 4:
+            image_array = image_array[:, :, :3]
 
-    if not target_file:
-        print(f"❌ No image found for RFID '{rfid}' in '{known_faces_dir}'!")
-        available_files = [f for f in os.listdir(known_faces_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
-        print(f"   Available image files: {available_files}")
+        print(f"✅ Successfully downloaded image ({image_array.shape})")
+        return image_array
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error downloading image: {str(e)}")
+        return None
+    except Exception as e:
+        print(f"❌ Error processing downloaded image: {str(e)}")
+        return None
+
+def load_employee_face_from_url(image_url, rfid):
+    """Load and encode employee face from Firebase URL"""
+    print(f"📁 Loading employee face from URL for RFID: {rfid}")
+
+    # Download the image from the URL
+    image_array = download_image_from_url(image_url)
+
+    if image_array is None:
+        print(f"❌ Failed to download image for RFID: {rfid}")
         return None, None
 
     try:
-        print(f"📁 Loading employee face: {target_file}")
-
-        # Load the employee's image
-        image_path = os.path.join(known_faces_dir, target_file)
-        image = face_recognition.load_image_file(image_path)
-
-        # Get face encodings
-        encodings = face_recognition.face_encodings(image)
+        # Get face encodings from the downloaded image
+        encodings = face_recognition.face_encodings(image_array)
 
         if encodings:
             target_encoding = encodings[0]
-            print(f"✅ Successfully loaded face for RFID: {rfid}")
+            print(f"✅ Successfully loaded face encoding for RFID: {rfid}")
             return target_encoding, rfid
         else:
-            print(f"❌ No face found in: {target_file}")
+            print(f"❌ No face found in the downloaded image for RFID: {rfid}")
             return None, None
 
     except Exception as e:
-        print(f"❌ Error loading {target_file}: {str(e)}")
+        print(f"❌ Error processing face encoding for RFID {rfid}: {str(e)}")
         return None, None
 
 def verify_face_with_camera(target_encoding, rfid, timeout_seconds=10):
@@ -116,7 +126,7 @@ def verify_face_with_camera(target_encoding, rfid, timeout_seconds=10):
 
             for unknown_encoding in face_encodings:
                 # Compare with the target face
-                matches = face_recognition.compare_faces([target_encoding], unknown_encoding, tolerance=0.8)
+                matches = face_recognition.compare_faces([target_encoding], unknown_encoding, tolerance=0.6)
                 distance = face_recognition.face_distance([target_encoding], unknown_encoding)[0]
 
                 if matches[0] and distance < 0.5:  # Stricter threshold for security
@@ -151,26 +161,18 @@ def verify_face_with_camera(target_encoding, rfid, timeout_seconds=10):
 
 def main():
     """Main verification function"""
-    if len(sys.argv) != 3   :
-        print("❌ Usage: python3 face_recognition_server.py <rfid>")
+    if len(sys.argv) != 3:
+        print("❌ Usage: python3 face_recognition_server.py <rfid> <image_url>")
         sys.exit(2)
 
     rfid = sys.argv[1]
+    image_url = sys.argv[2]
+
     print(f"🔐 Starting face verification for RFID: {rfid}")
+    print(f"🔗 Image URL: {image_url}")
 
-    # Load the employee's face from the known faces directory
-    """Main verification function"""
-    if len(sys.argv) != 3:  # Now expects RFID and path
-        print("❌ Usage: python3 face_recognition_server.py <rfid> <known_faces_path>")
-        sys.exit(2)
-
-    rfid = sys.argv[1]
-    known_faces_path = sys.argv[2]
-    print(f"🔐 Starting face verification for RFID: {rfid}")
-
-    # Load the employee's face from the known faces directory
-    target_encoding, target_rfid = load_employee_face(known_faces_path, rfid)
-# rest of the function remains the same
+    # Load the employee's face from the Firebase URL
+    target_encoding, target_rfid = load_employee_face_from_url(image_url, rfid)
 
     if target_encoding is None:
         print(f"❌ Could not load face data for RFID: {rfid}")
